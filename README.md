@@ -35,15 +35,20 @@ Web: <https://asensio94.github.io/registro-alegaciones/>
 6. **Prueba del envío.** Cada presentación guarda el canal, el número de registro, la fecha y hora
    oficial, el órgano y su DIR3, el CSV y la huella SHA-256 del escrito y del justificante. Un envío
    sin justificante queda marcado en la cabecera y en la ficha.
-7. **Vistas.** «Mis plazos» (vencido, hoy, esta semana, les toca a ellos, más adelante), expedientes en
-   lista, tablero por fases o calendario, informe anual con exportación CSV y JSON. Paleta de
-   comandos (`Ctrl K`) y atajos, siempre con su botón.
-8. **Guardar.** Un fichero por registro en la carpeta elegida (tabla de abajo): dos personas que
+7. **Vistas.** «Hoy» abre la herramienta con una frase de resumen y tres tarjetas: lo que nos toca
+   hacer esta semana, lo que está por decidir y lo que la Administración ya debería haber
+   contestado. Después, la bandeja (avisos del correo, anuncios del BOE y decididos, en pestañas),
+   «Plazos» (vencido, hoy, esta semana, les toca a ellos, más adelante), expedientes en lista,
+   tablero por fases o calendario, e informe anual con exportación CSV y JSON. Paleta de comandos
+   (`Ctrl K`) y atajos, siempre con su botón. Tema claro fijo.
+8. **Guía.** Una guía rápida dentro de la página (`#/guia`, también sin abrir carpeta): qué es cada
+   parte, primeros pasos, cómo leer los colores, la rutina, atajos y preguntas frecuentes.
+9. **Guardar.** Un fichero por registro en la carpeta elegida (tabla de abajo): dos personas que
    tocan expedientes distintos nunca se pisan. Si tocan el mismo, antes de escribir se relee y el
    cambio se reaplica sobre la versión del otro (`app/store.js`). Las copias en conflicto que creen
    OneDrive o Dropbox se señalan en Ajustes. Al abrir una carpeta del formato anterior
    (`registro.json`), se reparte en ficheros y el original se guarda en `copias/`.
-9. **Instalable.** Chrome y Edge la instalan como aplicación (manifest y service worker, que solo
+10. **Instalable.** Chrome y Edge la instalan como aplicación (manifest y service worker, que solo
    guarda la propia página para abrirla sin conexión; nunca los datos).
 
 La investigación de mercado y las decisiones de diseño están en [INVESTIGACION.md](INVESTIGACION.md).
@@ -95,6 +100,8 @@ La investigación de mercado y las decisiones de diseño están en [INVESTIGACIO
 
 Con la web: abrir <https://asensio94.github.io/registro-alegaciones/> en Chrome o Edge, pulsar
 «Abrir carpeta…» y elegir la carpeta compartida del equipo, o «Abrir la demostración».
+La [guía rápida](https://asensio94.github.io/registro-alegaciones/#/guia) explica cada parte y los
+primeros pasos.
 
 Para desarrollar:
 
