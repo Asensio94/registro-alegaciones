@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,6 +8,7 @@
 <!--FAVICON-->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#c03a55">
+<meta name="color-scheme" content="light">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,7 +50,7 @@
     <li><b>Guardar</b> escribe un fichero por registro en la carpeta compartida: uno por expediente en <code>expedientes/</code>, uno por decisión de la bandeja y uno por aviso. Dos personas que tocan expedientes distintos nunca se pisan. Si tocan el mismo, antes de escribir se relee y el cambio se vuelve a aplicar sobre la versión del otro. Si OneDrive o Dropbox llegan a crear una copia en conflicto, Ajustes la señala. Cada día se deja una copia completa en <code>copias/</code>.</li>
   </ol>
   <h3>Plazos que se calculan</h3>
-  <table class="params">
+  <div class="table-scroll"><table class="params">
     <thead><tr><th>Hecho</th><th>Plazo que abre</th><th>Regla</th><th>Base</th></tr></thead>
     <tbody>
       <tr><th>Publicación</th><td>Alegaciones (nuestro)</td><td>Los días que diga el anuncio, hábiles por defecto, desde el día siguiente</td><td class="data">art. 36.1 Ley 21/2013 · art. 30 Ley 39/2015</td></tr>
@@ -64,7 +65,7 @@
       <tr><th>Recurso de reposición</th><td>Resolverlo (suyo)</td><td>1 mes</td><td class="data">art. 124.2 Ley 39/2015</td></tr>
       <tr><th>DIA publicada</th><td>Vigilar la caducidad</td><td>4 años si no empieza la obra (prorrogable 2)</td><td class="data">art. 43.1 Ley 21/2013</td></tr>
     </tbody>
-  </table>
+  </table></div>
   <h3>Límites</h3>
   <ul>
     <li>Calcula plazos, no los certifica: el que vale es el que dice el anuncio o el pie de recursos de la resolución. La DIA y el informe de impacto ambiental no se recurren por separado; se recurre la autorización (arts. 41.4 y 47.5 Ley 21/2013).</li>

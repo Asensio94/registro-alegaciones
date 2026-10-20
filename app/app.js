@@ -109,9 +109,9 @@ const App = (() => {
   // ---------- state ----------
   const S = {
     store: null, data: null, feed: null, feedError: null, feedLoading: false,
-    route: { view: "plazos" }, sel: 0, saving: false, savedAt: null, focus: null,
-    filters: { q: "", stage: "", owner: "", category: "", tag: "", closed: false, preset: "" },
-    inbox: { envOnly: true, q: "", showDecided: false },
+    route: { view: "hoy" }, sel: 0, saving: false, savedAt: null, focus: null,
+    filters: { q: "", stage: "", owner: "", category: "", tag: "", closed: false, preset: "" }, filtersOpen: false,
+    inbox: { envOnly: true, q: "", tab: "" },
     mine: false, month: null, gPressed: false,
   };
   const me = () => { try { return localStorage.getItem("registro-me") || S.data?.people?.[0]?.id || ""; } catch { return S.data?.people?.[0]?.id || ""; } };
@@ -283,12 +283,14 @@ const App = (() => {
 
   // ---------- rendering: shell ----------
   function render() {
-    if (!S.data) { renderWelcome(); return; }
+    // The method section is reference material: it shows on the landing page and in the guide.
+    document.body.classList.toggle("show-method", S.route.view === "guia");
+    if (!S.data) { if (S.route.view === "guia") renderGuideAlone(); else renderWelcome(); return; }
     document.body.classList.add("ready");
     renderFigures(); renderNav(); renderStatus();
     const r = S.route, main = $("#main");
-    const views = { bandeja: viewInbox, plazos: viewDeadlines, cases: viewCases, case: viewCase, informe: viewReport, ajustes: viewSettings };
-    main.innerHTML = (views[r.view] || viewDeadlines)();
+    const views = { hoy: viewToday, bandeja: viewInbox, plazos: viewDeadlines, cases: viewCases, case: viewCase, informe: viewReport, ajustes: viewSettings, guia: viewGuide };
+    main.innerHTML = (views[r.view] || viewToday)();
     main.dataset.view = r.view;
     if (S.focus) { const el = $(S.focus); if (el) el.focus(); S.focus = null; }
     markSelection();
@@ -312,24 +314,20 @@ const App = (() => {
   function renderNav() {
     const r = S.route, ds = allDeadlines();
     const urgent = ds.filter((p) => p.ours && ["missed", "today", "week"].includes(p.light)).length;
-    const link = (href, label, count, on, cls = "") => `<a href="${href}" class="${cls}${on ? " on" : ""}"${on ? ' aria-current="page"' : ""}><span>${label}</span>${count != null ? `<em>${count}</em>` : ""}</a>`;
-    const preset = (id, label) => `<button type="button" class="nav-preset${S.filters.preset === id && r.view === "cases" ? " on" : ""}" data-action="preset" data-preset="${id}">${label}</button>`;
+    // Four places, each with a line saying what it is for; the rest is secondary.
+    const link = (href, label, count, on, sub = "") => `<a href="${href}" class="${on ? "on" : ""}"${on ? ' aria-current="page"' : ""}><span>${label}${sub ? `<small>${sub}</small>` : ""}</span>${count != null ? `<em>${count}</em>` : ""}</a>`;
     $("#nav").innerHTML = `
-      ${link("#/bandeja", "Bandeja", S.feed || S.data.notices.length ? inboxCount() : "…", r.view === "bandeja")}
-      ${link("#/plazos", "Mis plazos", urgent || null, r.view === "plazos")}
-      ${link("#/expedientes", "Expedientes", S.data.cases.filter((c) => ACTIVE.has(c.stage)).length, r.view === "cases" || r.view === "case")}
-      <div class="nav-sub">
-        ${link("#/expedientes/lista", "Lista", null, r.view === "cases" && r.mode === "lista")}
-        ${link("#/expedientes/tablero", "Tablero", null, r.view === "cases" && r.mode === "tablero")}
-        ${link("#/expedientes/calendario", "Calendario", null, r.view === "cases" && r.mode === "calendario")}
-      </div>
-      <p class="nav-h label">Vistas guardadas</p>
-      ${preset("mine", "Los míos")}${preset("noreceipt", "Sin justificante")}${preset("priority", "Prioridad alta")}${preset("followup", "En seguimiento")}
-      <p class="nav-h label">Organización</p>
-      ${link("#/informe", "Informe", null, r.view === "informe")}
-      ${link("#/ajustes", "Ajustes", null, r.view === "ajustes")}
-      <button type="button" class="btn primary nav-new" data-action="new-case">Nuevo expediente <kbd>N</kbd></button>
-      <button type="button" class="btn ghost nav-k" data-action="palette">Buscar o ir a… <kbd>Ctrl K</kbd></button>`;
+      ${link("#/hoy", "Hoy", null, r.view === "hoy", "Qué hay que hacer")}
+      ${link("#/bandeja", "Bandeja", S.feed || S.data.notices.length ? inboxCount() : "…", r.view === "bandeja", "Lo que ha llegado")}
+      ${link("#/plazos", "Plazos", urgent || null, r.view === "plazos", "Qué vence y cuándo")}
+      ${link("#/expedientes", "Expedientes", S.data.cases.filter((c) => ACTIVE.has(c.stage)).length, r.view === "cases" || r.view === "case", "Cada proyecto seguido")}
+      <button type="button" class="btn primary nav-new" data-action="new-case">Nuevo expediente</button>
+      <div class="nav-more">
+        ${link("#/informe", "Informe", null, r.view === "informe")}
+        ${link("#/ajustes", "Ajustes", null, r.view === "ajustes")}
+        ${link("#/guia", "Guía", null, r.view === "guia")}
+        <button type="button" class="btn ghost nav-k" data-action="palette">Buscar <kbd>Ctrl K</kbd></button>
+      </div>`;
   }
 
   function renderStatus() {
@@ -385,13 +383,163 @@ const App = (() => {
           <p>Siete expedientes inventados en distintas fases, con plazos que vencen esta semana, una presentación sin justificante, una autorización recurrible y dos avisos llegados por correo. La bandeja lee el estado real del Observatorio de alegaciones.</p>
           <p class="actions"><button class="btn" data-action="demo">Abrir la demostración</button></p>
         </div>
-      </section>`;
+      </section>
+      <p class="welcome-guide">¿Primera vez? <a href="#/guia">Lee la guía rápida</a>: qué es cada parte, los primeros pasos y cómo leer los colores.</p>`;
+  }
+  function renderGuideAlone() {
+    document.body.classList.remove("ready");
+    $("#figures").innerHTML = "";
+    $("#nav").innerHTML = "";
+    $("#main").innerHTML = `<nav class="crumbs note"><a href="#/">← Volver al inicio</a></nav>${viewGuide()}`;
+  }
+
+  // ---------- view: today ----------
+  /* The landing view answers one question: what needs doing. Our moves first, then what is waiting
+     for a decision, then what the Administration owes us. Each card links to the full view. */
+  const introHidden = () => { try { return localStorage.getItem("registro-intro") === "hidden"; } catch { return false; } };
+  const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
+  function viewToday() {
+    const ds = allDeadlines().filter((p) => !p.done && p.kind !== "dia_expiry").sort((a, b) => (a.due < b.due ? -1 : 1));
+    const ours = ds.filter((p) => p.ours && ["missed", "today", "week"].includes(p.light));
+    const missed = ours.filter((p) => p.light === "missed").length;
+    const theirs = ds.filter((p) => !p.ours && ["late", "very_late"].includes(p.light));
+    const waitingOk = ds.filter((p) => !p.ours && !["late", "very_late"].includes(p.light)).length;
+    const notices = noticeItems().pending;
+    const toDecide = inboxCount();
+    const boe = S.feed ? toDecide - notices.length : null;
+    const noReceipt = filingsWithoutReceipt();
+    const nw = news();
+
+    const parts = [];
+    if (missed) parts.push(`<b>${plural(missed, "plazo nuestro vencido", "plazos nuestros vencidos")}</b>`);
+    if (ours.length - missed) parts.push(`<b>${plural(ours.length - missed, "plazo nuestro", "plazos nuestros")}</b> esta semana`);
+    if (toDecide) parts.push(`<b>${plural(toDecide, "cosa", "cosas")}</b> por decidir en la bandeja`);
+    if (noReceipt.length) parts.push(`<b>${plural(noReceipt.length, "envío", "envíos")} sin justificante</b>`);
+    if (theirs.length) parts.push(`<b>${plural(theirs.length, "respuesta", "respuestas")}</b> de la Administración fuera de plazo`);
+    const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : parts[0];
+    const day = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+    const summary = list ? `Hay ${list}.` : "Nada urgente: ningún plazo nuestro esta semana y la bandeja está al día.";
+
+    const intro = introHidden() ? "" : `<section class="intro card">
+      <h3 class="label">Primeros pasos</h3>
+      <ol class="steps">
+        <li><b>Di quién eres</b> en «Soy», encima del menú. Cada cambio queda firmado con ese nombre.</li>
+        <li><b>Decide lo que hay en la bandeja</b>: abre expediente, descarta con motivo o pospón cada aviso y anuncio.</li>
+        <li><b>Anota los hechos</b> en la cronología de cada expediente según ocurren. Los plazos se calculan solos.</li>
+        <li><b>Al presentar</b>, pulsa «Anotar presentación», pon el número de registro y sube el justificante.</li>
+        <li><b>Vuelve a esta página</b> cada mañana: aquí está lo que hay que hacer.</li>
+      </ol>
+      <p class="actions"><a class="btn small" href="#/guia">Leer la guía</a><button class="btn small ghost" data-action="intro-hide">Entendido, ocultar</button></p></section>`;
+
+    const alerts = [
+      noReceipt.length ? `<div class="alert warn"><div><b>Falta el justificante</b> de ${noReceipt.length === 1 ? "un envío" : `${noReceipt.length} envíos`}: ${noReceipt.slice(0, 4).map(({ c, e }) => `<a href="#/e/${esc(c.id)}">${esc(c.title)}</a> (${dateLabel(e.date, true)})`).join(", ")}${noReceipt.length > 4 ? "…" : ""}. Es la única prueba de que se presentó y de cuándo.</div></div>` : "",
+      nw.length ? `<div class="alert info"><div>El observatorio ha publicado ${nw.length === 1 ? "una resolución que parece" : `${nw.length} resoluciones que parecen`} de vuestros expedientes.</div><a class="btn small" href="#/bandeja">Revisar</a></div>` : "",
+    ].join("");
+
+    let i = 0;
+    const MAX = 6;
+    const caseRowMini = (p) => {
+      const c = caseById(p.caseId);
+      return `<li class="row sel-row" data-idx="${i++}" data-href="#/e/${esc(c.id)}" tabindex="-1">
+        <div class="row-main"><p class="row-title"><a href="#/e/${esc(c.id)}">${esc(c.title)}</a></p><p class="row-meta">${chip(p)} ${esc(p.label)}</p></div>
+        ${avatar(c.owner)}</li>`;
+    };
+    const card = (cls, title, count, explain, rows, more, empty) => `<section class="tcard card ${cls}">
+      <h3 class="label">${title} <em>${count}</em></h3><p class="note">${explain}</p>
+      ${rows ? `<ol class="rows">${rows}</ol>` : `<p class="tempty">${empty}</p>`}
+      ${more ? `<p class="tmore">${more}</p>` : ""}</section>`;
+
+    const noticeRows = notices.slice(0, MAX).map((n) => {
+      const p = noticeDeadline(n);
+      return `<li class="row sel-row" data-idx="${i++}" data-href="#/bandeja" tabindex="-1">
+        <div class="row-main"><p class="row-title"><a href="#/bandeja">${esc(n.subject)}</a></p><p class="row-meta">${p ? `${chip(p)} ` : ""}${esc(noticeKindLabel(n.kind))}, sin expediente todavía</p></div></li>`;
+    }).join("");
+    const cards = `<div class="today-grid">
+      ${card("t-ours", "Nos toca actuar", ours.length, "Plazos nuestros vencidos, de hoy o de esta semana.",
+        ours.slice(0, MAX).map(caseRowMini).join(""),
+        `<a href="#/plazos">${ours.length > MAX ? `Ver los ${ours.length} y el resto de plazos` : "Ver todos los plazos"} →</a>`,
+        "Nada que presentar esta semana.")}
+      ${card("t-decide", "Por decidir", toDecide, "Avisos llegados por correo y anuncios del BOE que aún no tienen expediente ni descarte.",
+        noticeRows,
+        `${boe != null && boe > 0 ? `${plural(boe, "anuncio del BOE", "anuncios del BOE")} con plazo abierto. ` : ""}<a href="#/bandeja">Ir a la bandeja →</a>`,
+        "No hay avisos del correo sin decidir.")}
+      ${card("t-theirs", "Esperando a la Administración", theirs.length, "Respuestas y resoluciones que ya deberían haber llegado.",
+        theirs.slice(0, MAX).map(caseRowMini).join(""),
+        waitingOk ? `${plural(waitingOk, "respuesta más", "respuestas más")} aún en plazo. <a href="#/plazos">Ver plazos →</a>` : "",
+        "Ninguna fuera de plazo.")}
+    </div>`;
+
+    return `<header class="view-h today-h"><p class="label today-day">${esc(day)}</p><h2>Hoy</h2><p class="today-sum">${summary}</p></header>
+      ${intro}${alerts}${cards}`;
+  }
+
+  // ---------- view: guide ----------
+  function viewGuide() {
+    const ex = (light, ours, n, label) => chip({ light, ours, due: D.addDays(today(), n), label, rule: "ejemplo", basis: "" });
+    const legend = [
+      [ex("missed", true, -2, "Alegaciones"), "Nos tocaba y el plazo ya pasó."],
+      [ex("today", true, 0, "Alegaciones"), "Nos toca y vence hoy."],
+      [ex("week", true, 4, "Alegaciones"), "Nos toca y vence esta semana."],
+      [ex("later", true, 20, "Alegaciones"), "Nos toca, con tiempo."],
+      [ex("later", false, 15, "Respuesta"), "Esperamos a la Administración y aún está en plazo."],
+      [ex("late", false, -10, "Respuesta"), "Debería haber respondido: conviene reclamar."],
+      [ex("very_late", false, -40, "Respuesta"), "Más de 30 días fuera de plazo: cabe recurrir el silencio."],
+      [`<span class="chip done ours">cumplido</span>`, "Plazo cerrado por el hecho que lo contesta."],
+    ].map(([c, t]) => `<tr><th>${c}</th><td>${t}</td></tr>`).join("");
+    return `<header class="view-h"><h2>Guía rápida</h2>
+      <p class="guide-lede">El registro sirve para tres cosas: que no se pase ningún plazo, saber qué se ha enviado y con qué papeles, y poder demostrarlo.</p></header>
+      <div class="guide">
+        <section><h3 class="label">Qué es cada parte</h3>
+          <dl class="parts">
+            <dt>Hoy</dt><dd>Lo que hay que hacer hoy y esta semana. Es la página de inicio.</dd>
+            <dt>Bandeja</dt><dd>Lo que ha llegado y nadie ha decidido: avisos que llegan por correo (consultas, notificaciones) y anuncios del BOE con plazo abierto.</dd>
+            <dt>Plazos</dt><dd>Todos los plazos abiertos, del más urgente al más lejano, de todo el equipo o solo los tuyos.</dd>
+            <dt>Expedientes</dt><dd>Un expediente por proyecto: su cronología, sus documentos y sus tareas. Se ven en lista, en tablero por fases o en calendario.</dd>
+            <dt>Informe y Ajustes</dt><dd>El resumen del año para la memoria, y la configuración: personas del equipo, festivos, instalar la aplicación.</dd>
+          </dl></section>
+        <section><h3 class="label">Primeros pasos</h3>
+          <ol class="steps">
+            <li><b>Abre la carpeta del equipo</b> (o la demostración, para curiosear sin miedo).</li>
+            <li><b>Di quién eres</b> en «Soy», encima del menú. Cada cambio queda firmado con ese nombre.</li>
+            <li><b>Decide lo que hay en la bandeja.</b> Para cada aviso o anuncio: <i>Abrir expediente</i>, <i>Descartar</i> (con motivo, para saber luego por qué no se alegó) o <i>Posponer</i> hasta una fecha.</li>
+            <li><b>Anota los hechos</b> en la cronología de cada expediente según ocurren: la consulta recibida, la presentación, la respuesta, la resolución. Los plazos se calculan solos a partir de ellos.</li>
+            <li><b>Al presentar</b>, pulsa «Anotar presentación», pon el número de registro y sube el justificante. Sin justificante, el expediente queda marcado en rojo.</li>
+          </ol></section>
+        <section><h3 class="label">Cómo leer los colores</h3>
+          <p><b>Relleno: nos toca a nosotros. Contorno: le toca a la Administración.</b> Un asterisco (*) indica un plazo estimado: compruébalo con el anuncio.</p>
+          <table class="params legend"><tbody>${legend}</tbody></table></section>
+        <section><h3 class="label">La rutina</h3>
+          <ul>
+            <li><b>Cada mañana</b>, abre «Hoy» y empieza por lo rojo.</li>
+            <li><b>Cuando llega un correo</b> de un órgano ambiental, arrástralo a la página: entra en la bandeja con su plazo.</li>
+            <li><b>El día que se presenta algo</b>, anótalo y sube el justificante.</li>
+            <li><b>Una vez a la semana</b>, deja la bandeja a cero y repasa lo que espera respuesta de la Administración.</li>
+          </ul></section>
+        <section><h3 class="label">Atajos de teclado</h3>
+          <p class="note">Opcionales: todo tiene también su botón.</p>
+          <table class="params"><tbody>
+            <tr><th><kbd>Ctrl K</kbd> o <kbd>/</kbd></th><td>Buscar un expediente o ir a cualquier sitio</td></tr>
+            <tr><th><kbd>N</kbd></th><td>Nuevo expediente</td></tr>
+            <tr><th><kbd>J</kbd> <kbd>K</kbd> o flechas</th><td>Moverse por una lista; <kbd>Intro</kbd> abre</td></tr>
+            <tr><th><kbd>A</kbd> <kbd>D</kbd> <kbd>S</kbd></th><td>En la bandeja: abrir expediente, descartar, posponer</td></tr>
+            <tr><th><kbd>G</kbd> y luego <kbd>H</kbd> <kbd>B</kbd> <kbd>P</kbd> <kbd>E</kbd></th><td>Ir a Hoy, Bandeja, Plazos, Expedientes</td></tr>
+          </tbody></table></section>
+        <section><h3 class="label">Preguntas frecuentes</h3>
+          <dl class="faq">
+            <dt>¿Dónde están los datos?</dt><dd>En la carpeta del equipo: un fichero por expediente, los documentos y los correos, y una copia completa cada día. La página solo trae el código; nada sale de la carpeta. En la demostración, todo se queda en este navegador.</dd>
+            <dt>¿Qué pasa si dos personas lo usan a la vez?</dt><dd>Cada una ve los cambios de la otra en unos segundos. Si tocan el mismo expediente, el segundo cambio se aplica encima del primero: no se pierde ninguno.</dd>
+            <dt>¿Cómo meto un correo de Outlook?</dt><dd>Desde Outlook de escritorio, arrástralo primero al escritorio y desde ahí a la página. Desde Outlook web o Gmail, descárgalo como .eml. También vale el PDF.</dd>
+            <dt>El plazo no coincide con el del anuncio</dt><dd>Manda el anuncio. Revisa los festivos en Ajustes (los locales no vienen de serie) y la fecha del hecho en la cronología. Si el plazo ya no aplica, «Cerrar sin actuar» lo deja cerrado con el motivo.</dd>
+            <dt>¿Se puede instalar?</dt><dd>Sí, en Chrome o Edge: desde Ajustes o con el icono de instalar de la barra de direcciones. Se abre en su propia ventana.</dd>
+          </dl></section>
+        <p class="note">Debajo está <button class="link" data-action="to-method">cómo se calcula cada plazo</button>, con su base legal.</p>
+      </div>`;
   }
 
   // ---------- view: inbox (triage) ----------
   function viewInbox() {
     const head = `<header class="view-h"><h2>Bandeja</h2>
-      <p class="note">Lo que ha llegado y aún no tiene decisión: los <b>avisos</b> que recibe la organización por correo y los anuncios con plazo abierto que detecta el <a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a>. Para cada uno, una sola decisión: <b>abrir expediente</b> (o añadirlo a uno que ya existe), <b>descartar</b> con motivo o <b>posponer</b>. <span class="kbd-hint"><kbd>J</kbd>/<kbd>K</kbd> moverse · <kbd>A</kbd> abrir · <kbd>D</kbd> descartar · <kbd>S</kbd> posponer</span></p></header>`;
+      <p class="note">Lo que ha llegado y nadie ha decidido todavía. Para cada cosa, una decisión: <b>abrir expediente</b> (o añadirla a uno que ya existe), <b>descartar</b> con motivo o <b>posponer</b>.</p></header>`;
     let body = "", i = 0;
     const nw = news();
     if (nw.length) {
@@ -402,16 +550,35 @@ const App = (() => {
           <button class="btn small ghost" data-action="news-dismiss" data-case="${esc(c.id)}" data-res="${esc(r.identificador)}">No es de este expediente</button></div></div>`).join("")}</section>`;
     }
 
-    // Notices received by e-mail (or noted by hand).
+    // Three tabs: e-mail notices (few, urgent), BOE announcements (many), and what was decided.
     const notices = noticeItems();
-    body += `<section class="group notices"><h3 class="label">Avisos recibidos <em>${notices.pending.length}</em></h3>
-      <div class="dropzone">
-        <p><b>Arrastra aquí correos</b> (.eml, o .msg de Outlook) <b>o PDF</b> de consultas y notificaciones: se leen en este navegador, se guardan en ${S.store.kind === "folder" ? "la carpeta" : "la demostración"} con sus adjuntos y entran en la bandeja con su plazo.
-          <button class="btn small" data-action="notice-pick">Elegir ficheros…</button> <button class="btn small ghost" data-action="notice-manual">Anotar a mano</button></p>
-        <p class="note">Desde Outlook de escritorio, arrastra el correo primero al escritorio (o «Guardar como») y luego aquí.${S.store.kind === "folder" ? " Los que deje una regla del buzón en <code>entrada/</code> se leen solos." : ""}</p>
+    const feed = S.feed ? feedItems() : null;
+    const feedCount = feed ? feed.pending.filter((a) => !S.inbox.envOnly || a.tramite_ambiental).length : null;
+    const decided = [
+      ...notices.decided.map(({ n, tri }) => ({ id: n.id, title: n.subject, tri })),
+      ...(feed ? feed.decided.map(({ a, tri }) => ({ id: a.identificador, title: shortTitle(a.titulo), tri })) : []),
+    ];
+    const tab = S.inbox.tab || (notices.pending.length ? "avisos" : "boe");
+    const tabBtn = (id, label, n) => `<button role="tab" aria-selected="${tab === id}" class="${tab === id ? "on" : ""}" data-action="inbox-tab" data-tab="${id}">${label} <em>${n ?? "…"}</em></button>`;
+    body += `<div class="tabs" role="tablist" aria-label="Qué ver">
+      ${tabBtn("avisos", "Avisos del correo", notices.pending.length)}${tabBtn("boe", "Anuncios del BOE", feedCount)}${tabBtn("decididos", "Decididos", decided.length)}</div>`;
+
+    if (tab === "avisos") {
+      body += `<div class="dropzone">
+        <p><b>Arrastra aquí</b> correos (.eml, .msg de Outlook) o PDF de consultas y notificaciones, o
+          <button class="btn small" data-action="notice-pick">elige ficheros…</button> <button class="btn small ghost" data-action="notice-manual">Anotar a mano</button></p>
+        <p class="note">Se leen en este navegador y se guardan en ${S.store.kind === "folder" ? "la carpeta" : "la demostración"} con sus adjuntos. Desde Outlook de escritorio, arrastra antes el correo al escritorio.${S.store.kind === "folder" ? " Los que deje una regla del buzón en <code>entrada/</code> entran solos." : ""}</p>
       </div>
-      ${notices.pending.length ? `<ol class="rows inbox" role="listbox" aria-label="Avisos pendientes">${notices.pending.map((n) => noticeRow(n, i++)).join("")}</ol>` : ""}
-    </section>`;
+      ${notices.pending.length ? `<ol class="rows inbox" role="listbox" aria-label="Avisos pendientes">${notices.pending.map((n) => noticeRow(n, i++)).join("")}</ol>` : `<p class="empty">No hay avisos sin decidir.</p>`}`;
+      return head + body;
+    }
+    if (tab === "decididos") {
+      body += decided.length ? `<p class="note">Descartados y pospuestos. Lo pospuesto vuelve solo a la bandeja el día indicado.</p><ul class="rows">${decided.map(({ id, title, tri }) => `
+        <li class="row"><div class="row-main"><p class="row-title">${esc(title)}</p>
+        <p class="row-meta">${tri.decision === "discarded" ? `Descartado: ${esc(tri.reason)}` : `Pospuesto hasta el ${dateLabel(tri.until)}`} · ${esc(personName(tri.by))} · ${dateLabel(tri.at)}</p></div>
+        <div class="row-actions"><button class="btn small ghost" data-action="triage-undo" data-id="${esc(id)}">Deshacer</button></div></li>`).join("")}</ul>` : `<p class="empty">Todavía no se ha descartado ni pospuesto nada.</p>`;
+      return head + body;
+    }
 
     // Announcements from the observatory.
     let feedHtml;
@@ -440,24 +607,12 @@ const App = (() => {
           <span class="chip ${cls} ours" title="Fecha límite ${a.plazo_estimado ? "estimada (30 días hábiles por defecto)" : "calculada por el observatorio"}">${rel(a.fecha_limite)} · ${dateLabel(a.fecha_limite, true)}${a.plazo_estimado ? " *" : ""}</span>
           <div class="row-actions">
             <button class="btn small primary" data-action="triage-accept" data-id="${esc(a.identificador)}">Abrir expediente</button>
-            <button class="btn small" data-action="triage-discard" data-id="${esc(a.identificador)}">Descartar</button>
+            <button class="btn small ghost" data-action="triage-discard" data-id="${esc(a.identificador)}">Descartar</button>
             <button class="btn small ghost" data-action="triage-snooze" data-id="${esc(a.identificador)}">Posponer</button>
           </div></li>`;
       }).join("")}</ol>` : `<p class="empty">Ningún anuncio pendiente: todo lo abierto está decidido.</p>`;
     }
-    body += `<section class="group"><h3 class="label">Anuncios del BOE</h3>${feedHtml}</section>`;
-
-    const decided = [
-      ...notices.decided.map(({ n, tri }) => ({ id: n.id, title: n.subject, tri })),
-      ...(S.feed ? feedItems().decided.map(({ a, tri }) => ({ id: a.identificador, title: a.titulo, tri })) : []),
-    ];
-    if (decided.length) {
-      body += `<details class="decided"${S.inbox.showDecided ? " open" : ""}><summary data-action="toggle-decided">Decididos (${decided.length})</summary><ul class="rows">${decided.map(({ id, title, tri }) => `
-        <li class="row"><div class="row-main"><p class="row-title">${esc(title)}</p>
-        <p class="row-meta">${tri.decision === "discarded" ? `Descartado: ${esc(tri.reason)}` : `Pospuesto hasta el ${dateLabel(tri.until)}`} · ${esc(personName(tri.by))} · ${dateLabel(tri.at)}</p></div>
-        <div class="row-actions"><button class="btn small ghost" data-action="triage-undo" data-id="${esc(id)}">Deshacer</button></div></li>`).join("")}</ul></details>`;
-    }
-    return head + body;
+    return head + body + feedHtml;
   }
 
   function noticeRow(n, i) {
@@ -476,9 +631,11 @@ const App = (() => {
       </div>
       ${p ? chip(p) : `<span class="chip none" title="Sin tipo: el plazo lo dirá el propio aviso">sin plazo</span>`}
       <div class="row-actions">
-        <button class="btn small primary" data-action="notice-open" data-id="${esc(n.id)}">Abrir expediente</button>
-        <button class="btn small" data-action="notice-join" data-id="${esc(n.id)}"${m ? ` data-case="${esc(m.c.id)}"` : ""}>${m ? "Añadir a ese expediente" : "Añadir a un expediente"}</button>
-        <button class="btn small" data-action="triage-discard" data-id="${esc(n.id)}">Descartar</button>
+        ${m ? `<button class="btn small primary" data-action="notice-join" data-id="${esc(n.id)}" data-case="${esc(m.c.id)}">Añadir a ese expediente</button>
+        <button class="btn small" data-action="notice-open" data-id="${esc(n.id)}">Abrir uno nuevo</button>`
+        : `<button class="btn small primary" data-action="notice-open" data-id="${esc(n.id)}">Abrir expediente</button>
+        <button class="btn small" data-action="notice-join" data-id="${esc(n.id)}">Añadir a uno existente</button>`}
+        <button class="btn small ghost" data-action="triage-discard" data-id="${esc(n.id)}">Descartar</button>
         <button class="btn small ghost" data-action="triage-snooze" data-id="${esc(n.id)}">Posponer</button>
       </div></li>`;
   }
@@ -515,8 +672,8 @@ const App = (() => {
       const list = all.filter(f);
       return list.length ? `<section class="group g-${id}"><h3 class="label">${title} <em>${list.length}</em></h3><ol class="rows">${rows(list)}</ol></section>` : "";
     }).join("");
-    return `<header class="view-h"><h2>Mis plazos</h2>
-      <p class="note">Todos los plazos salen de la cronología de cada expediente: la publicación o la consulta recibida abren el de alegaciones, una autorización abre el de recurso y una solicitud de información, el mes de respuesta. Cada plazo se cierra solo cuando llega el evento que lo contesta.</p></header>
+    return `<header class="view-h"><h2>Plazos</h2>
+      <p class="note">Salen de la cronología de cada expediente y se cierran solos cuando llega el hecho que los contesta. <b>Relleno</b>: nos toca a nosotros; <b>contorno</b>: esperamos a la Administración.</p></header>
       <div class="toolbar"><div class="seg" role="group" aria-label="De quién">
         <button class="${S.mine ? "" : "on"}" data-action="mine" data-v="0">Todo el equipo</button>
         <button class="${S.mine ? "on" : ""}" data-action="mine" data-v="1">Solo los míos</button></div>
@@ -547,20 +704,26 @@ const App = (() => {
     const mode = S.route.mode || "lista";
     const f = S.filters;
     const tags = [...new Set(S.data.cases.flatMap((c) => c.tags || []))].sort();
-    const presetNames = { mine: "Los míos", noreceipt: "Sin justificante", priority: "Prioridad alta", followup: "En seguimiento" };
+    const presets = [["", "Todos los abiertos"], ["mine", "Los míos"], ["noreceipt", "Sin justificante"], ["priority", "Prioridad alta"], ["followup", "En seguimiento"]];
     const sel = (name, opts, val, all) => `<select data-filter="${name}" aria-label="${all}"><option value="">${all}</option>${Object.entries(opts).map(([k, v]) => `<option value="${esc(k)}"${val === k ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+    const filtering = !!(f.stage || f.owner || f.category || f.tag || f.closed);
     const bar = `<div class="toolbar">
       <div class="seg" role="group" aria-label="Vista">${["lista", "tablero", "calendario"].map((m) => `<a href="#/expedientes/${m}" class="${mode === m ? "on" : ""}">${m[0].toUpperCase() + m.slice(1)}</a>`).join("")}</div>
       <input type="search" data-filter="q" value="${esc(f.q)}" placeholder="Buscar título, expediente, municipio, promotor…" aria-label="Buscar expedientes">
-      ${sel("stage", Object.fromEntries(STAGES.map((s) => [s.id, s.label])), f.stage, "Todas las fases")}
-      ${sel("owner", Object.fromEntries(S.data.people.map((p) => [p.id, p.name])), f.owner, "Cualquier responsable")}
-      ${sel("category", CATEGORIES, f.category, "Cualquier tipo")}
-      ${tags.length ? sel("tag", Object.fromEntries(tags.map((t) => [t, t])), f.tag, "Cualquier etiqueta") : ""}
-      <label class="check"><input type="checkbox" data-filter="closed" ${f.closed ? "checked" : ""}> Incluir cerradas y descartadas</label>
-      ${f.preset ? `<span class="pill">${presetNames[f.preset]} <button class="x" data-action="preset" data-preset="" aria-label="Quitar vista">×</button></span>` : ""}
+    </div>
+    <div class="toolbar">
+      <div class="chipbar" role="group" aria-label="Vistas rápidas">${presets.map(([id, label]) => `<button type="button" class="${f.preset === id ? "on" : ""}" data-action="preset" data-preset="${id}">${label}</button>`).join("")}</div>
+      <details class="more-filters"${filtering || S.filtersOpen ? " open" : ""}><summary>Más filtros${filtering ? " (activos)" : ""}</summary><div class="toolbar">
+        ${sel("stage", Object.fromEntries(STAGES.map((s) => [s.id, s.label])), f.stage, "Todas las fases")}
+        ${sel("owner", Object.fromEntries(S.data.people.map((p) => [p.id, p.name])), f.owner, "Cualquier responsable")}
+        ${sel("category", CATEGORIES, f.category, "Cualquier tipo")}
+        ${tags.length ? sel("tag", Object.fromEntries(tags.map((t) => [t, t])), f.tag, "Cualquier etiqueta") : ""}
+        <label class="check"><input type="checkbox" data-filter="closed" ${f.closed ? "checked" : ""}> Incluir cerrados y descartados</label>
+      </div></details>
     </div>`;
     const list = filteredCases();
-    const head = `<header class="view-h"><h2>Expedientes</h2></header>`;
+    const head = `<header class="view-h"><h2>Expedientes</h2>
+      <p class="note">Un expediente por proyecto al que se sigue la pista, desde que se estudia si alegar hasta la resolución. Ábrelo para ver su cronología, sus plazos y sus documentos.</p></header>`;
     if (mode === "tablero") return head + bar + board(list);
     if (mode === "calendario") return head + bar + calendarView(list);
     return head + bar + listView(list);
@@ -693,8 +856,14 @@ const App = (() => {
         </div></li>`;
     }).join("")}</ol>`;
 
-    const addButtons = ["publication", "consultation", "filing", "reply", "resolution", "requirement", "notification", "info_request", "extension", "appeal", "note"]
-      .map((t) => `<button class="btn small${t === "filing" ? " primary" : ""}" data-action="add-event" data-type="${t}">${EVENTS[t].label}</button>`).join("");
+    // One obvious action (what we file) and the rest grouped by who does it.
+    const group = (label, types) => `<optgroup label="${label}">${types.map((t) => `<option value="${t}">${EVENTS[t].label}</option>`).join("")}</optgroup>`;
+    const addEvent = `<div class="add-ev">
+      <button class="btn small primary" data-action="add-event" data-type="filing">Anotar presentación</button>
+      <select data-action="add-event-select" aria-label="Anotar otro hecho"><option value="">Anotar otro hecho…</option>
+        ${group("Lo que hacemos", ["info_request", "appeal", "note"])}
+        ${group("Lo que llega", ["publication", "consultation", "notification", "reply", "requirement", "extension", "resolution"])}</select>
+      <span class="note">Cada hecho con su fecha: los plazos salen de aquí.</span></div>`;
 
     return `<nav class="crumbs note"><a href="#/expedientes">Expedientes</a> / ${stageBadge(c.stage)}</nav>
       <div class="detail">
@@ -704,19 +873,19 @@ const App = (() => {
           ${c.official_title ? `<details class="official note"><summary>Título oficial del anuncio</summary><p>${esc(c.official_title)}</p></details>` : ""}
           ${alerts}
           <section class="block"><h3 class="label">Plazos</h3>${deadlinesHtml}</section>
-          <section class="block"><h3 class="label">Tareas <em>${(c.checklist || []).filter((k) => k.done).length}/${(c.checklist || []).length}</em></h3>${checklist}</section>
+          <section class="block"><h3 class="label">Cronología</h3>${addEvent}${timeline}</section>
           <section class="block"><h3 class="label">Documentos</h3>${docs}</section>
-          <section class="block"><h3 class="label">Cronología</h3>
-            <div class="add-ev"><span class="note">Añadir:</span> ${addButtons}</div>${timeline}</section>
+          <section class="block"><h3 class="label">Tareas <em>${(c.checklist || []).filter((k) => k.done).length}/${(c.checklist || []).length}</em></h3>${checklist}</section>
         </div>
         <aside class="props card">
           ${field("Fase", `<select data-field="stage">${opt(Object.fromEntries(STAGES.map((s) => [s.id, s.label])), c.stage)}</select>`)}
           ${c.stage === "discarded" && c.discard_reason ? `<p class="note">Motivo: ${esc(c.discard_reason)}</p>` : ""}
           ${field("Responsable", `<select data-field="owner">${people(c.owner)}</select>`)}
-          ${field("Revisa", `<select data-field="reviewer">${people(c.reviewer)}</select>`)}
           ${field("Prioridad", `<select data-field="priority">${opt({ 0: "Sin prioridad", 1: "Baja", 2: "Media", 3: "Alta" }, String(c.priority || 0))}</select>`)}
-          ${field("Resultado", `<select data-field="outcome">${opt(OUTCOMES, c.outcome || "")}</select>`)}
-          <hr>
+          ${c.outcome || ["followup", "closed"].includes(c.stage) ? field("Resultado", `<select data-field="outcome">${opt(OUTCOMES, c.outcome || "")}</select>`) : ""}
+          <details class="more-props"${S.propsOpen ? " open" : ""}><summary>Datos del expediente</summary>
+          ${field("Revisa", `<select data-field="reviewer">${people(c.reviewer)}</select>`)}
+          ${c.outcome || ["followup", "closed"].includes(c.stage) ? "" : field("Resultado", `<select data-field="outcome">${opt(OUTCOMES, c.outcome || "")}</select>`)}
           ${field("Procedimiento", `<select data-field="procedure">${opt(PROCEDURES, c.procedure)}</select>`)}
           ${field("Tipo de proyecto", `<select data-field="category">${opt(CATEGORIES, c.category)}</select>`)}
           ${field("Órgano sustantivo", input("body", c.body))}
@@ -728,6 +897,7 @@ const App = (() => {
           ${field("Municipios", input("towns", (c.towns || []).join(", ")))}
           ${field("Etiquetas", input("tags", (c.tags || []).join(", "), "ZEPA, esteparias…"))}
           ${field("Anuncio", c.boe_id ? `<span class="data">${esc(c.boe_id)}</span>${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">abrir</a>` : ""}` : input("boe_id", "", "BOE-B-2026-…"))}
+          </details>
           <hr>
           <p class="note">Creado ${dateLabel(c.created)} · actualizado ${dateTimeLabel(c.updated)}</p>
           <p class="note">Plazos con el calendario de ${esc([S.data.org?.region, c.region].filter(Boolean).join(" y ") || "festivos nacionales")} (art. 30.6 Ley 39/2015).</p>
@@ -770,9 +940,9 @@ const App = (() => {
         <section class="card"><h3 class="label">Por qué no se alegó</h3><table class="params"><tbody>${tbl(reasons)}</tbody></table></section>
       </div>
       <section class="block"><h3 class="label">Presentaciones del año</h3>
-        <table class="params wide"><thead><tr><th>Fecha oficial</th><th>Expediente</th><th>Registro</th><th>Justificante</th><th>Resultado</th></tr></thead><tbody>
+        <div class="table-scroll"><table class="params wide"><thead><tr><th>Fecha oficial</th><th>Expediente</th><th>Registro</th><th>Justificante</th><th>Resultado</th></tr></thead><tbody>
         ${filings.map(({ c, e }) => `<tr><td class="data">${dateTimeLabel(e.registry?.datetime || e.date)}</td><td><a href="#/e/${esc(c.id)}">${esc(c.title)}</a></td><td class="data">${esc(e.registry?.number || "—")}</td><td>${receiptsOf(c, e).length ? "sí" : `<b class="warn">falta</b>`}</td><td>${OUTCOMES[c.outcome || ""]}</td></tr>`).join("") || `<tr><td colspan="5" class="note">Ninguna este año.</td></tr>`}
-        </tbody></table></section>`;
+        </tbody></table></div></section>`;
   }
 
   // ---------- view: settings ----------
@@ -1203,7 +1373,9 @@ const App = (() => {
     "triage-discard": (el) => reasonDialog("Descartar este anuncio", DISCARD_REASONS, (reason) => triageDecide(el.dataset.id, "discarded", { reason })),
     "triage-snooze": (el) => dialog(`<h2>Posponer</h2><p class="note">Vuelve a la bandeja ese día.</p><label>Hasta <input type="date" name="until" required value="${D.addDays(today(), 7)}"></label>`, (fd) => triageDecide(el.dataset.id, "snoozed", { until: fd.get("until") })),
     "triage-undo": (el) => mutate((d) => { delete d.triage[el.dataset.id]; }),
-    "toggle-decided": () => { S.inbox.showDecided = !S.inbox.showDecided; },
+    "inbox-tab": (el) => { S.inbox.tab = el.dataset.tab; S.sel = 0; render(); },
+    "intro-hide": () => { try { localStorage.setItem("registro-intro", "hidden"); } catch { /* ignore */ } render(); toast("Oculto. La guía sigue en el menú."); },
+    "to-method": () => $("#como-se-calcula").scrollIntoView({ behavior: "smooth" }),
     "news-add": (el) => newsAdd(el.dataset.case, el.dataset.res),
     "news-dismiss": (el) => mutate(onCase(el.dataset.case, (c) => { (c.dismissed_news ||= []).push(el.dataset.res); })),
     "add-event": (el) => eventDialog(S.route.id, el.dataset.type),
@@ -1252,6 +1424,7 @@ const App = (() => {
       if (el.dataset.action === "check") { actions.check(el); return; }
       if (el.dataset.action === "inbox-env") { S.inbox.envOnly = el.checked; render(); return; }
       if (el.dataset.action === "report-year") { S.reportYear = el.value; render(); return; }
+      if (el.dataset.action === "add-event-select") { const t = el.value; el.value = ""; if (t) eventDialog(S.route.id, t); return; }
       if (el.dataset.filter) { S.filters[el.dataset.filter] = el.type === "checkbox" ? el.checked : el.value; render(); return; }
       if (el.dataset.person) { const id = el.dataset.person, v = el.value.trim(); if (v) mutate((d) => { const p = d.people.find((x) => x.id === id); if (p) p.name = v; }); return; }
       if (el.dataset.field && S.route.view === "case") {
@@ -1331,6 +1504,11 @@ const App = (() => {
       const id = ev.dataTransfer.getData("text/plain");
       setStage(id, col.dataset.drop);
     });
+    // <details> toggles don't bubble; listen in the capture phase to keep them open across renders.
+    document.addEventListener("toggle", (ev) => {
+      if (ev.target.classList?.contains("more-filters")) S.filtersOpen = ev.target.open;
+      if (ev.target.classList?.contains("more-props")) S.propsOpen = ev.target.open;
+    }, true);
     document.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", () => { S.route = parseRoute(); S.sel = 0; render(); window.scrollTo({ top: $("#app").offsetTop - 8 }); });
     // While the tab is visible: pick up other people's saves and e-mails left in entrada/.
@@ -1363,7 +1541,7 @@ const App = (() => {
     const k = ev.key;
     if (S.gPressed) {
       S.gPressed = false;
-      const go = { b: "#/bandeja", p: "#/plazos", e: "#/expedientes/lista", t: "#/expedientes/tablero", c: "#/expedientes/calendario", i: "#/informe", a: "#/ajustes" }[k.toLowerCase()];
+      const go = { h: "#/hoy", b: "#/bandeja", p: "#/plazos", e: "#/expedientes/lista", t: "#/expedientes/tablero", c: "#/expedientes/calendario", i: "#/informe", a: "#/ajustes" }[k.toLowerCase()];
       if (go) { location.hash = go; ev.preventDefault(); }
       return;
     }
@@ -1402,7 +1580,7 @@ const App = (() => {
       <tr><th><kbd>N</kbd></th><td>Nuevo expediente</td></tr>
       <tr><th><kbd>J</kbd> <kbd>K</kbd> / flechas</th><td>Moverse por la lista; <kbd>Intro</kbd> abre</td></tr>
       <tr><th><kbd>A</kbd> <kbd>D</kbd> <kbd>S</kbd></th><td>En la bandeja: abrir expediente, descartar, posponer</td></tr>
-      <tr><th><kbd>G</kbd> y luego <kbd>B</kbd> <kbd>P</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>C</kbd> <kbd>I</kbd> <kbd>A</kbd></th><td>Ir a bandeja, plazos, expedientes, tablero, calendario, informe, ajustes</td></tr>
+      <tr><th><kbd>G</kbd> y luego <kbd>H</kbd> <kbd>B</kbd> <kbd>P</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>C</kbd> <kbd>I</kbd> <kbd>A</kbd></th><td>Ir a hoy, bandeja, plazos, expedientes, tablero, calendario, informe, ajustes</td></tr>
       </tbody></table><p class="note">Todo lo que hace un atajo tiene también su botón.</p>`, () => true);
   }
 
@@ -1415,14 +1593,16 @@ const App = (() => {
     let idx = 0;
     const cmds = [
       { t: "Nuevo expediente", k: "N", run: () => newCaseDialog() },
+      { t: "Ir a hoy", k: "G H", run: () => (location.hash = "#/hoy") },
       { t: "Ir a la bandeja", k: "G B", run: () => (location.hash = "#/bandeja") },
-      { t: "Ir a mis plazos", k: "G P", run: () => (location.hash = "#/plazos") },
+      { t: "Ir a los plazos", k: "G P", run: () => (location.hash = "#/plazos") },
       { t: "Ver expedientes en lista", k: "G E", run: () => (location.hash = "#/expedientes/lista") },
       { t: "Ver el tablero por fases", k: "G T", run: () => (location.hash = "#/expedientes/tablero") },
       { t: "Ver el calendario de plazos", k: "G C", run: () => (location.hash = "#/expedientes/calendario") },
       { t: "Informe del año", k: "G I", run: () => (location.hash = "#/informe") },
       { t: "Ajustes", k: "G A", run: () => (location.hash = "#/ajustes") },
       { t: "Exportar presentaciones (CSV)", run: () => actions["csv-filings"]() },
+      { t: "Guía rápida", run: () => (location.hash = "#/guia") },
       { t: "Atajos de teclado", k: "?", run: () => showShortcuts() },
     ];
     const draw = () => {
@@ -1469,7 +1649,7 @@ const App = (() => {
       if (query === "sin-justificante") S.filters = { ...S.filters, preset: "noreceipt" };
       return { view: "cases", mode: b || "lista" };
     }
-    return { view: ["bandeja", "plazos", "informe", "ajustes"].includes(a) ? a : "plazos" };
+    return { view: ["hoy", "bandeja", "plazos", "informe", "ajustes", "guia"].includes(a) ? a : "hoy" };
   }
 
   async function openFolder(store, ask = true) {

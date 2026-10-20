@@ -4,7 +4,7 @@
   /* Deadline lights: meaning, not decoration (kept per repo, as GUIA.md says). */
   --late:#b42318; --soon:#9a6700; --ok:#2f7a55; --wait:#4a5d75;
   --late-bg:#fbe9e7; --soon-bg:#fdf3d8; --ok-bg:#e6f2ea; --wait-bg:#e9edf2;
-  --hover:rgba(34,29,26,.05); --sel:rgba(159,29,53,.08);
+  --hover:rgba(34,29,26,.05); --sel:rgba(192,58,85,.08);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -34,17 +34,24 @@
 body:not(.ready) .shell{grid-template-columns:minmax(0,1fr)}
 body:not(.ready) #nav{display:none}
 #nav{position:sticky;top:12px;display:grid;gap:2px}
-#nav a,#nav .nav-preset{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;text-decoration:none;font:600 16px/1.2 var(--font-title);letter-spacing:.03em;color:var(--ink);background:none;border:0;text-align:left;cursor:pointer;width:100%}
-#nav a:hover,#nav .nav-preset:hover{background:var(--hover)}
-#nav a.on,#nav .nav-preset.on{background:var(--sel);color:var(--accent)}
+#nav a{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;text-decoration:none;font:600 17px/1.15 var(--font-title);letter-spacing:.03em;color:var(--ink);border-left:3px solid transparent}
+#nav a small{display:block;font:13px/1.3 var(--font-text);letter-spacing:0;color:var(--muted);margin-top:1px}
+#nav a:hover{background:var(--hover)}
+#nav a.on{background:var(--sel);color:var(--accent);border-left-color:var(--accent)}
 #nav em{font:500 13px/1 var(--font-data);font-style:normal;color:var(--muted)}
-#nav .nav-sub{display:grid;gap:1px;margin-left:12px;padding-left:6px;border-left:1px solid var(--line)}
-#nav .nav-sub a{font-size:14.5px;padding:4px 8px}
-#nav .nav-preset{font-size:14.5px;font-weight:500}
-.nav-h{margin:14px 10px 2px;font-size:12px;color:var(--muted)}
-.nav-new{margin-top:14px}
-.nav-new,.nav-k{justify-content:space-between;width:100%}
+.nav-new{margin:12px 0 6px;justify-content:center;width:100%}
+.nav-more{display:grid;gap:1px;margin-top:6px;padding-top:8px;border-top:1px solid var(--line)}
+#nav .nav-more a{font-size:15px;padding:5px 10px}
+.nav-k{justify-content:space-between;width:100%;margin-top:4px}
 main{min-width:0}
+
+/* Inside the app the page header is a title bar: the figures stay, the long intro goes. */
+body.ready .site-header{padding:16px 16px 10px;gap:10px}
+body.ready .site-header h1{font-size:clamp(30px,4vw,44px)}
+body.ready .site-header .lede{display:none}
+body.ready .figures b{font-size:24px}
+/* The method is reference: on the landing page and in the guide, not under every view. */
+body.ready:not(.show-method) .method{display:none}
 
 /* Controls */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink);font:600 15px/1.1 var(--font-title);letter-spacing:.04em;text-decoration:none;cursor:pointer;white-space:nowrap}
@@ -283,11 +290,11 @@ table.params.wide{max-width:none}
 @media (max-width:760px){
   .shell{grid-template-columns:minmax(0,1fr);gap:12px}
   #nav{position:static;display:flex;flex-wrap:wrap;gap:4px}
-  #nav a,#nav .nav-preset{width:auto;padding:5px 9px}
-  #nav .nav-sub{margin:0;padding:0;border:0;display:flex;flex-wrap:wrap}
-  .nav-h,.nav-k,#nav .nav-preset{display:none}
-  .nav-new{margin:0;width:auto}
-  .nav-new kbd,.kbd-hint{display:none}
+  #nav a{width:auto;padding:5px 9px;border-left:0}
+  #nav a small,.nav-k{display:none}
+  .nav-more{display:contents}
+  .nav-new{margin:0;width:auto;order:9}
+  .today-sum{font-size:18px}
   .row{flex-wrap:wrap}
   .row-main{flex-basis:calc(100% - 30px)}
   .row-actions{justify-content:flex-start}
@@ -313,3 +320,70 @@ body.dropping::after{content:"Suelta aquí los correos o PDF: entrarán en la ba
 .excerpt p{margin:6px 0 0;max-width:90ch}
 .g-inbox h3{color:var(--soon)}
 #status a.warn{color:var(--late);font-weight:600}
+
+/* Today: one sentence, then three cards (our move, to decide, waiting for them). */
+.today-h h2{margin:0}
+.today-day{margin:0 0 2px;font-size:13px;color:var(--muted)}
+.today-sum{margin:6px 0 16px;font-size:20px;line-height:1.4;max-width:70ch}
+.today-sum b{color:var(--accent);font-weight:600}
+.today-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+.tcard{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0;border-top:3px solid var(--line)}
+.tcard .row-meta .chip{margin-right:4px}
+.tcard h3{display:flex;align-items:center;gap:8px;margin:0;font-size:15px}
+.tcard h3 em{font:500 14px/1 var(--font-data);font-style:normal;color:var(--muted)}
+.tcard>.note{margin:0}
+.tcard .rows{background:var(--ground);border-color:transparent}
+.tcard .row{padding:8px 10px}
+.tcard .row-title{font-size:15.5px}
+.t-ours{border-top-color:var(--late)}
+.t-decide{border-top-color:var(--accent)}
+.t-theirs{border-top-color:var(--wait)}
+.tempty{margin:0;padding:12px;color:var(--muted);background:var(--ground);border-radius:4px;font-size:15px}
+.tmore{margin:0;font-size:14.5px;color:var(--muted)}
+.intro{margin:0 0 16px;border-left:3px solid var(--accent)}
+.intro h3{margin:0 0 6px;font-size:15px}
+.steps{margin:0;padding-left:1.4em;display:grid;gap:4px}
+.steps li{padding-left:2px}
+.welcome-guide{margin:16px 0 0;font-size:16px}
+
+/* Tabs (inbox) and quick-view chips (cases). */
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:0 0 14px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;padding:8px 12px;font:600 16px/1.2 var(--font-title);letter-spacing:.03em;color:var(--muted);cursor:pointer}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs em{font:500 13px/1 var(--font-data);font-style:normal;margin-left:4px}
+.chipbar{display:flex;flex-wrap:wrap;gap:6px}
+.chipbar button{padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font:500 14px/1.3 var(--font-text);cursor:pointer}
+.chipbar button:hover{border-color:var(--muted)}
+.chipbar button.on{background:var(--sel);border-color:var(--accent);color:var(--accent);font-weight:600}
+.more-filters summary{cursor:pointer;font-size:14.5px;color:var(--muted)}
+.more-filters[open] summary{margin-bottom:8px}
+.more-filters .toolbar{margin:0}
+
+/* Case: grouped "add" menu and a short side panel. */
+.add-ev select{font-size:14.5px;padding:4px 6px}
+.more-props{display:grid;gap:8px}
+.more-props summary{cursor:pointer;font:600 13px/1.4 var(--font-title);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:4px 0}
+.more-props[open]{display:grid;gap:8px}
+.more-props .prop{margin-top:8px}
+
+/* Guide */
+.guide-lede{margin:6px 0 18px;font-size:19px;line-height:1.45;max-width:65ch}
+.guide{display:grid;gap:22px;max-width:860px}
+.guide section h3{margin:0 0 8px;font-size:15px;color:var(--accent)}
+.guide p,.guide li,.guide dd{max-width:72ch}
+.guide ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
+.parts,.faq{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px}
+.parts dt,.faq dt{font-weight:600}
+.parts dt{font:600 17px/1.4 var(--font-title);letter-spacing:.03em}
+.parts dd,.faq dd{margin:0}
+.faq{grid-template-columns:1fr}
+.faq dd{margin:-4px 0 6px;color:var(--ink)}
+.guide .params th{text-transform:none;letter-spacing:0;font:400 15px/1.4 var(--font-text);white-space:nowrap}
+@media (max-width:760px){
+  .parts{grid-template-columns:1fr;gap:2px}
+  .parts dd{margin-bottom:8px}
+}
+
+/* Wide tables scroll on their own instead of widening the page. */
+.table-scroll{overflow-x:auto;max-width:100%}
