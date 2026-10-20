@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+# An organisation's data never goes to the repository: if a team folder ends up here by mistake, keep it out
+organizacion.json
+registro.json
+expedientes/
+bandeja/
+avisos/
+entrada/
+copias/
+documentos/
+*.eml
+*.msg

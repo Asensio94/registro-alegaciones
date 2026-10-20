@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registro de alegaciones</title>
+<meta name="description" content="Seguimiento privado de las alegaciones de una organización: qué se ha enviado, con qué documentos y qué plazo corre. Los datos se quedan en la carpeta del equipo.">
+<!--FAVICON-->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c03a55">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/*COMMON_CSS*/
+/*APP_CSS*/
+</style>
+</head>
+<body>
+<header class="site-header">
+  <h1><!--LOGO-->Registro de <span>alegaciones</span></h1>
+  <p class="lede">Qué ha enviado la organización, con qué documentos y qué plazo corre en cada expediente. Los datos se quedan en la carpeta del equipo: esta página solo trae el código.</p>
+  <div class="figures" id="figures" aria-live="polite"></div>
+</header>
+
+<div id="app">
+  <div id="status" aria-live="polite"></div>
+  <div class="shell">
+    <nav id="nav" aria-label="Secciones"></nav>
+    <main id="main"><p class="empty">Cargando…</p></main>
+  </div>
+</div>
+
+<dialog id="dlg" aria-label="Formulario"></dialog>
+<div id="palette" hidden role="dialog" aria-label="Buscar o ir a"><div class="pal"><input type="text" placeholder="Busca un expediente o escribe una acción…" aria-label="Buscar"><ul></ul></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section class="method" id="como-se-calcula">
+  <h2>Cómo se calcula</h2>
+  <ol>
+    <li><b>La bandeja</b> lee cada vez el estado público del <a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a>: los anuncios del BOE con plazo abierto que aún no tienen expediente ni decisión. Cada anuncio se abre, se descarta con motivo o se pospone hasta una fecha.</li>
+    <li><b>Los avisos que llegan por correo</b> antes del BOE (consultas a personas interesadas, notificaciones de la DEHú) entran en la misma bandeja: se arrastra el correo (.eml o .msg de Outlook) o el PDF, o una regla del buzón lo deja en la carpeta <code>entrada/</code>. Se leen en el navegador; se guardan el original y los adjuntos, se reconoce el tipo de aviso y el número de expediente, y se propone el expediente al que parece pertenecer. Cuando el proyecto sale después en el BOE, la bandeja lo empareja con el expediente que ya estaba abierto.</li>
+    <li><b>Cada expediente es una cronología</b> de hechos con fecha: publicación, presentación en registro, solicitud de información, respuesta, requerimiento, resolución, recurso. Los documentos cuelgan del hecho al que pertenecen.</li>
+    <li><b>Los plazos no se teclean: se deducen.</b> Cada hecho abre el plazo que le corresponde (tabla de abajo) y lo cierra el hecho que lo contesta. Si se corrige la fecha de la publicación, se mueve el plazo que cuelga de ella.</li>
+    <li><b>El calendario</b> descuenta sábados, domingos, festivos nacionales, los autonómicos que trae la herramienta y los que el equipo añada en Ajustes. Vale el festivo de la sede de la organización y el del órgano (art. 30.6 Ley 39/2015). Fuera de 2026–2028 el plazo sale marcado como estimado (*).</li>
+    <li><b>El semáforo</b> distingue de quién es el turno. Nuestro: vencido, hoy, esta semana o más adelante. De la Administración: en plazo, fuera de plazo o muy fuera de plazo (más de 30 días), que es cuando conviene reclamar o recurrir el silencio.</li>
+    <li><b>La prueba de cada envío</b> es el justificante del registro. Se guardan su número, la fecha y hora oficial, el órgano de destino y la huella SHA-256 del escrito y del justificante, que demuestra qué fichero exacto se presentó. Un envío sin justificante queda marcado hasta que se sube.</li>
+    <li><b>Guardar</b> escribe un fichero por registro en la carpeta compartida: uno por expediente en <code>expedientes/</code>, uno por decisión de la bandeja y uno por aviso. Dos personas que tocan expedientes distintos nunca se pisan. Si tocan el mismo, antes de escribir se relee y el cambio se vuelve a aplicar sobre la versión del otro. Si OneDrive o Dropbox llegan a crear una copia en conflicto, Ajustes la señala. Cada día se deja una copia completa en <code>copias/</code>.</li>
+  </ol>
+  <h3>Plazos que se calculan</h3>
+  <table class="params">
+    <thead><tr><th>Hecho</th><th>Plazo que abre</th><th>Regla</th><th>Base</th></tr></thead>
+    <tbody>
+      <tr><th>Publicación</th><td>Alegaciones (nuestro)</td><td>Los días que diga el anuncio, hábiles por defecto, desde el día siguiente</td><td class="data">art. 36.1 Ley 21/2013 · art. 30 Ley 39/2015</td></tr>
+      <tr><th>Consulta como persona interesada</th><td>Contestar (nuestro)</td><td>Los días que diga la consulta; si no, 30 días hábiles (plan o proyecto ordinario) o 20 (simplificada, alcance)</td><td class="data">arts. 19.1, 30.2, 34.4, 37.4 y 46.2 Ley 21/2013</td></tr>
+      <tr><th>Aviso de notificación electrónica</th><td>Acceder (nuestro)</td><td>10 días naturales desde la puesta a disposición; si no se abre, se da por rechazada y el trámite sigue</td><td class="data">art. 43.2 Ley 39/2015</td></tr>
+      <tr><th>Requerimiento</th><td>Subsanar (nuestro)</td><td>10 días hábiles</td><td class="data">art. 68.1 Ley 39/2015</td></tr>
+      <tr><th>Solicitud de información</th><td>Responder (suyo)</td><td>1 mes; 2 si avisan de que lo amplían</td><td class="data">art. 10.2.c Ley 27/2006</td></tr>
+      <tr><th>Resolución con alzada</th><td>Recurrir (nuestro)</td><td>1 mes de fecha a fecha; si vence en inhábil, el siguiente hábil</td><td class="data">art. 122.1 Ley 39/2015</td></tr>
+      <tr><th>Resolución con reposición</th><td>Recurrir (nuestro)</td><td>1 mes</td><td class="data">art. 124.1 Ley 39/2015</td></tr>
+      <tr><th>Resolución con contencioso</th><td>Recurrir (nuestro)</td><td>2 meses; agosto no corre; del 24 al 31 de diciembre no son hábiles</td><td class="data">arts. 46 y 128.2 LJCA · art. 183 LOPJ</td></tr>
+      <tr><th>Recurso de alzada</th><td>Resolverlo (suyo)</td><td>3 meses; después, silencio desestimatorio</td><td class="data">art. 122.2 Ley 39/2015</td></tr>
+      <tr><th>Recurso de reposición</th><td>Resolverlo (suyo)</td><td>1 mes</td><td class="data">art. 124.2 Ley 39/2015</td></tr>
+      <tr><th>DIA publicada</th><td>Vigilar la caducidad</td><td>4 años si no empieza la obra (prorrogable 2)</td><td class="data">art. 43.1 Ley 21/2013</td></tr>
+    </tbody>
+  </table>
+  <h3>Límites</h3>
+  <ul>
+    <li>Calcula plazos, no los certifica: el que vale es el que dice el anuncio o el pie de recursos de la resolución. La DIA y el informe de impacto ambiental no se recurren por separado; se recurre la autorización (arts. 41.4 y 47.5 Ley 21/2013).</li>
+    <li>Solo trae los festivos autonómicos fijos que se han comprobado; los demás, y los locales, los añade el equipo en Ajustes.</li>
+    <li>Trabajar con la carpeta compartida necesita Chrome o Edge. En otros navegadores solo funciona la demostración.</li>
+    <li>Desde Outlook de escritorio no se puede arrastrar un correo directamente al navegador: hay que soltarlo antes en el escritorio (o «Guardar como») y arrastrar ese fichero. Desde Outlook web, Gmail o Thunderbird se descarga como .eml.</li>
+    <li>No lee el buzón por sí sola: hasta que haya servidor, los avisos entran a mano o con una regla (Power Automate, una regla de reenvío) que deje el correo en <code>entrada/</code>.</li>
+    <li>No envía nada a ningún registro ni guarda copias fuera de la carpeta: presentar sigue siendo cosa de la sede electrónica.</li>
+  </ul>
+</section>
+
+<footer class="site-footer">
+  <p class="principle">Datos públicos, reglas a la vista y cada cifra enlazada a su fuente. Indicios, no veredictos.</p>
+  <p>La bandeja lee el estado del <a href="https://github.com/Asensio94/observatorio-alegaciones">Observatorio de alegaciones</a> (BOE, CC BY 4.0). Los expedientes, documentos y nombres del equipo viven solo en la carpeta de la organización. Código con licencia MIT en <a href="https://github.com/Asensio94/registro-alegaciones">GitHub</a>.</p>
+  <nav aria-label="Proyectos hermanos"><ul class="siblings">
+    <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
+    <li><a href="https://asensio94.github.io/vigia-incendios/">Vigía de incendios</a></li>
+    <li><a href="https://asensio94.github.io/centinela-natura/">Centinela Natura</a></li>
+    <li><a href="https://asensio94.github.io/vigilancia-humedales/">Vigilancia de humedales</a></li>
+    <li><a href="https://asensio94.github.io/sub-nocte/">Sub Nocte</a></li>
+    <li><a href="https://asensio94.github.io/riesgo-tendidos-aves/">Riesgo de tendidos para aves</a></li>
+    <li><a href="https://asensio94.github.io/grafo-promotores/">Grafo de promotores</a></li>
+    <li><a href="https://asensio94.github.io/cartera-cotizadas/">Cartera de las cotizadas</a></li>
+    <li><a href="https://asensio94.github.io/cuaderno-campo/">Cuaderno de campo</a></li>
+    <li><a href="https://asensio94.github.io/caudal-ecologico/">Caudal ecológico</a></li>
+    <li><a href="https://asensio94.github.io/estado-iba/">Estado de las IBA</a></li>
+    <li><a href="https://asensio94.github.io/acuiferos-francia/">Acuíferos de Francia</a></li>
+  </ul></nav>
+</footer>
+
+<script>
+/*SCRIPTS*/
+</script>
+</body>
+</html>
